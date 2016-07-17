@@ -3,6 +3,8 @@ var router = express.Router();
 var multipart = require('connect-multiparty');
 var path = require('path');
 var fs = require('fs');
+var config = require('../common/config');
+var qiniu = require("qiniu");
 
 
 router.post('/upload', multipart(), function (req, res) {
@@ -11,53 +13,50 @@ router.post('/upload', multipart(), function (req, res) {
     //copy file to a public directory
     var targetPath = path.dirname(__filename) + '/../public/' + filename;
     //copy file
-    fs.createReadStream(req.files.files.path).pipe(fs.createWriteStream(targetPath));
+    var stream = fs.createReadStream(req.files.files.path);
+    stream.pipe(fs.createWriteStream(targetPath));
+
+    var had_error = false;
+    stream.on('error', function (err) {
+        had_error = true;
+    });
+    stream.on('close', function () {
+        uploadFileToCDN();
+    });
+
+    function uploadFileToCDN() {
+        //需要填写你的 Access Key 和 Secret Key
+        qiniu.conf.ACCESS_KEY = config.qiniu.Access_Key;
+        qiniu.conf.SECRET_KEY = config.qiniu.Secret_Key;
+
+        //要上传的空间
+        var bucket = config.qiniu.bucket;
+
+        //上传到七牛后保存的文件名
+        var key = filename;
+
+        // 生成上传token
+        var token = new qiniu.rs.PutPolicy(bucket + ":" + key).token();
 
 
-    var qiniu = require("qiniu");
+        //要上传文件的本地路径
+        var filePath = targetPath;
 
-    //需要填写你的 Access Key 和 Secret Key
-    qiniu.conf.ACCESS_KEY = 'Access_Key';
-    qiniu.conf.SECRET_KEY = 'Secret_Key';
-
-    //要上传的空间
-    bucket = 'Bucket_Name';
-
-    //上传到七牛后保存的文件名
-    key = 'my-nodejs-logo.png';
-
-    //构建上传策略函数
-    function uptoken(bucket, key) {
-        var putPolicy = new qiniu.rs.PutPolicy(bucket + ":" + key);
-        return putPolicy.token();
-    }
-
-    //生成上传 Token
-    token = uptoken(bucket, key);
-
-    //要上传文件的本地路径
-    filePath = './ruby-logo.png'
-
-    //构造上传函数
-    function uploadFile(uptoken, key, localFile) {
+        //上传
         var extra = new qiniu.io.PutExtra();
-        qiniu.io.putFile(uptoken, key, localFile, extra, function (err, ret) {
+        qiniu.io.putFile(token, key, filePath, extra, function (err, ret) {
             if (!err) {
                 // 上传成功， 处理返回值
-                console.log(ret.hash, ret.key, ret.persistentId);
+                console.log(ret)
                 //return file url
-                res.json({code: 200, msg: {url: 'http://' + req.headers.host + '/' + filename}});
+                res.send({code: 200, msg: {url: config.qiniu.cdnUrl + filename}});
             } else {
                 // 上传失败， 处理返回代码
                 console.log(err);
-                //return file url
-                res.json({code: 200, msg: {url: 'http://' + req.headers.host + '/' + filename}});
+                res.send({code: 500, msg: "上传失败"});
             }
         });
     }
-
-    //调用uploadFile上传
-    uploadFile(token, key, filePath);
 
 
 });
