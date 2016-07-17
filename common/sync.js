@@ -1,0 +1,3 @@
+require('./db');
+
+Componnet.sync();
