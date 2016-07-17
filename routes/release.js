@@ -5,11 +5,13 @@ var path = require('path');
 var fs = require('fs');
 var config = require('../common/config');
 var qiniu = require("qiniu");
+var recordRelease = require('../middleware/record_release');
 
+router.use('/upload', recordRelease());
 
 router.post('/upload', multipart(), function (req, res) {
     //get filename
-    var filename = req.files.files.originalFilename || path.basename(req.files.files.ws.path);
+    var filename = req.files.files.originalFilename || path.basename(req.files.files.path);
     //copy file to a public directory
     var targetPath = path.dirname(__filename) + '/../public/' + filename;
     //copy file
@@ -33,7 +35,7 @@ router.post('/upload', multipart(), function (req, res) {
         var bucket = config.qiniu.bucket;
 
         //上传到七牛后保存的文件名
-        var key = filename;
+        var key = filename.split('.')[0] + '-' + req.query.nextVersion + '.' + filename.split('.')[1];
 
         // 生成上传token
         var token = new qiniu.rs.PutPolicy(bucket + ":" + key).token();
@@ -47,18 +49,32 @@ router.post('/upload', multipart(), function (req, res) {
         qiniu.io.putFile(token, key, filePath, extra, function (err, ret) {
             if (!err) {
                 // 上传成功， 处理返回值
-                console.log(ret)
                 //return file url
                 res.send({code: 200, msg: {url: config.qiniu.cdnUrl + filename}});
             } else {
                 // 上传失败， 处理返回代码
-                console.log(err);
                 res.send({code: 500, msg: "上传失败"});
             }
         });
     }
 
 
+});
+
+router.get('/all', function (req, res) {
+    var componentId = req.query.componentId;
+    Release.findAll({
+        where: {
+            componentId: componentId
+        },
+        order: 'createdAt DESC'
+
+    }).then(function (data) {
+        res.send({
+            code: 0,
+            data: data
+        })
+    })
 });
 
 

@@ -25,3 +25,21 @@ global.Component = sequelize.define('component', {
 }, {
     freezeTableName: true
 });
+
+global.Release = sequelize.define('release', {
+    id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        autoIncrement: true
+    },
+    componentId: {
+        type: Sequelize.INTEGER,
+        field: 'component_id'
+    },
+    componentVersion: {
+        type: Sequelize.STRING(10),
+        field: 'component_version'
+    }
+}, {
+    freezeTableName: true
+});

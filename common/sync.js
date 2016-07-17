@@ -1,3 +1,4 @@
 require('./db');
 
-Componnet.sync();
+Component.sync();
+Release.sync();
