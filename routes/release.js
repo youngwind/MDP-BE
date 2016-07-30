@@ -61,8 +61,31 @@ router.post('/upload', multipart(), function (req, res) {
 
 });
 
-router.get('/all', function (req, res) {
-    var componentId = req.query.componentId;
+
+/**
+ * 查询所有组件包的最新版本记录
+ */
+
+router.get('/all/newest', function (req, res) {
+
+    // 这个语句太可怕了。。。
+    var sql = "select * from `release` where (`component_id`, createdAt) in (select component_id, max(createdAt) as createdAt from  `release` group by component_id);"
+
+    sequelize.query(sql).spread(function (results, metadata) {
+        console.log(results);
+        res.send({
+            code: 0,
+            componentVersions: results
+        })
+    })
+
+});
+
+/**
+ * 查询某个组件包的所有版本记录
+ */
+router.get('/:cId', function (req, res) {
+    var componentId = req.params.cId;
     Release.findAll({
         where: {
             componentId: componentId

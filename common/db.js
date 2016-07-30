@@ -39,7 +39,11 @@ global.Release = sequelize.define('release', {
     componentVersion: {
         type: Sequelize.STRING(10),
         field: 'component_version'
+    },
+    name: {
+        type: Sequelize.STRING(100)
     }
+
 }, {
     freezeTableName: true
 });
